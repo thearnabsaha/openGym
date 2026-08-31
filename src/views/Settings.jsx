@@ -6,14 +6,16 @@ import { ACCENTS, todayISO, localTZ } from '../lib/format.js'
 import { effortOf } from '../lib/history.js'
 import { wakeLockSupported } from '../lib/wakelock.js'
 import { t, LANGS, INSTR_LANGS } from '../lib/i18n.js'
-import { loadStarterPlan, confirmSheet, importFromApp } from '../sheets.jsx'
+import { loadStarterPlan, confirmSheet, importFromApp, authSheet } from '../sheets.jsx'
 import Icon from '../components/Icon.jsx'
 import { Section, Row, SelectRow, Switch, Segmented, Button } from '../components/ui.jsx'
 
 export default function Settings() {
   const nav = useNavigate()
   const S = useStore(s => s.S)
-  const { update, replaceState, resetDemo } = useStore()
+  const user = useStore(s => s.user)
+  const syncStatus = useStore(s => s.syncStatus)
+  const { update, replaceState, resetDemo, pushState, signOut } = useStore()
   const toast = useUI(s => s.toast)
   const fileRef = useRef(null)
   const importRef = useRef(null)
@@ -55,9 +57,81 @@ export default function Settings() {
       <div style={{ flex: 1, marginLeft: 10 }}><h1>{t('Settings')}</h1></div>
     </div>
 
+    {/* ---------- Account & Cloud Sync ---------- */}
+    <Section title={t('Account & MongoDB Sync')}>
+      {user ? (
+        <>
+          <Row
+            icon="personCircle"
+            iconTint="var(--acc)"
+            title={user.displayName || user.username}
+            subtitle={`@${user.username} · ${t('MongoDB Atlas Connected')}`}
+          />
+          <Row
+            icon="cloud"
+            iconTint="var(--blue)"
+            title={t('Cloud Sync')}
+            subtitle={
+              syncStatus === 'syncing'
+                ? t('Syncing with MongoDB…')
+                : syncStatus === 'synced'
+                ? t('All workouts, weights & patterns synced')
+                : syncStatus === 'error'
+                ? t('Sync error — tap Sync Now to retry')
+                : t('Connected & ready')
+            }
+            accessory={
+              <Button
+                size="sm"
+                variant="tinted"
+                icon="reset"
+                disabled={syncStatus === 'syncing'}
+                onClick={async () => {
+                  await pushState()
+                  toast(t('Synced with MongoDB'))
+                }}
+              >
+                {t('Sync Now')}
+              </Button>
+            }
+          />
+          <Row
+            icon="signOut"
+            iconTint="var(--red)"
+            title={t('Sign Out')}
+            accessory="chevron"
+            onClick={() =>
+              confirmSheet({
+                title: t('Sign out?'),
+                message: t('Your workout data remains safely stored in MongoDB.'),
+                confirmText: t('Sign Out'),
+                danger: true,
+                onConfirm: async () => {
+                  await signOut()
+                  toast(t('Signed out'))
+                },
+              })
+            }
+          />
+        </>
+      ) : (
+        <Row
+          icon="cloud"
+          iconTint="var(--acc)"
+          title={t('Sign In / Register')}
+          subtitle={t('Save all workouts, weights, routines, and days to MongoDB.')}
+          accessory={
+            <Button size="sm" variant="primary" icon="person" onClick={authSheet}>
+              {t('Sign In')}
+            </Button>
+          }
+        />
+      )}
+    </Section>
+
     {/* ---------- Storage & Mode ---------- */}
     <Section title={t('Storage & Data')}>
-      <Row icon="lock" iconTint="var(--acc)" title={t('Local-First Mode')} subtitle={t('All workout data and history are stored securely in your browser.')} />
+      <Row icon="lock" iconTint="var(--teal)" title={t('Local Cache & Offline Access')} subtitle={t('Workouts are cached locally for instant access even without internet.')} />
       <Row icon="sparkles" iconTint="var(--blue)" title={t('Load sample / demo plan')} accessory="chevron"
         onClick={() => confirmSheet({
           title: t('Reset sample data?'),

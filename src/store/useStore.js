@@ -23,6 +23,8 @@ function loadState() {
 
 const hasData = st => !!((st.workouts || []).length || (st.routines || []).length || (st.bodyweight || []).length)
 
+let syncTimer = null
+
 export const useStore = create((set, get) => {
   const persist = (S) => {
     S._ts = Date.now()
@@ -31,22 +33,22 @@ export const useStore = create((set, get) => {
       localStorage.setItem(KEY, JSON.stringify(S))
     }
     set({ S })
-  }
 
-  // Clear local storage and reset
-  const clearLocalSession = () => {
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('gym_guest')
-      localStorage.removeItem('gym_dirty')
-      localStorage.removeItem(KEY)
+    // Auto-sync debounced to cloud if signed in
+    if (get().user && !get().user.isGuest) {
+      clearTimeout(syncTimer)
+      syncTimer = setTimeout(() => {
+        get().pushState()
+      }, 800)
     }
-    persist(clone(DEF))
   }
 
   return {
     S: (() => { const s = loadState(); registerCustom(s.customEx); return s })(),
-    user: { id: 'local_user', name: 'Athlete', local: true },
+    user: null, // { id, username, displayName }
     ready: false,
+    syncStatus: 'idle', // 'idle' | 'syncing' | 'synced' | 'error'
+    lastSyncedAt: null,
 
     // Mutate a draft of S via producer fn, then persist.
     update(mut) {
@@ -56,26 +58,114 @@ export const useStore = create((set, get) => {
     },
     replaceState(S) { persist(clone(S)) },
 
-    isGuest: () => true,
-    setGuest(v) { set({}) },
+    isGuest: () => !get().user || !!get().user.isGuest,
 
     setUser(u) {
       set({ user: u })
     },
 
+    // Push local state to MongoDB Atlas
     async pushState() {
-      // Future cloud database sync hook
-    },
-    async pullState() {
-      // Future cloud database sync hook
+      const user = get().user
+      if (!user || user.isGuest) return
+
+      try {
+        set({ syncStatus: 'syncing' })
+        const res = await fetch('/api/sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ state: get().S }),
+        })
+
+        if (res.ok) {
+          const data = await res.json()
+          set({ syncStatus: 'synced', lastSyncedAt: data.syncedAt || new Date().toISOString() })
+        } else {
+          set({ syncStatus: 'error' })
+        }
+      } catch (err) {
+        console.warn('Sync push error:', err)
+        set({ syncStatus: 'error' })
+      }
     },
 
+    // Pull cloud state from MongoDB Atlas
+    async pullState() {
+      const user = get().user
+      if (!user || user.isGuest) return
+
+      try {
+        set({ syncStatus: 'syncing' })
+        const res = await fetch('/api/sync')
+        if (res.ok) {
+          const data = await res.json()
+          if (data.state) {
+            const local = get().S
+            // Merge with local if local was newer, or replace with cloud
+            const merged = Object.assign(clone(DEF), local, data.state)
+            persist(merged)
+          }
+          set({ syncStatus: 'synced', lastSyncedAt: new Date().toISOString() })
+        } else {
+          set({ syncStatus: 'error' })
+        }
+      } catch (err) {
+        console.warn('Sync pull error:', err)
+        set({ syncStatus: 'error' })
+      }
+    },
+
+    // Sign In with username & password
+    async login(username, password) {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password }),
+      })
+
+      const data = await res.json()
+      if (!res.ok || !data.ok) {
+        throw new Error(data.error || 'Failed to sign in')
+      }
+
+      set({ user: data.user })
+      await get().pullState()
+      return data.user
+    },
+
+    // Sign Up / Register with username, password, displayName
+    async register(username, password, displayName) {
+      const currentState = get().S
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username,
+          password,
+          displayName,
+          initialState: hasData(currentState) ? currentState : undefined,
+        }),
+      })
+
+      const data = await res.json()
+      if (!res.ok || !data.ok) {
+        throw new Error(data.error || 'Failed to create account')
+      }
+
+      set({ user: data.user, syncStatus: 'synced', lastSyncedAt: new Date().toISOString() })
+      return data.user
+    },
+
+    // Sign Out
     async signOut() {
-      clearLocalSession()
+      try {
+        await fetch('/api/auth/logout', { method: 'POST' })
+      } catch (e) { /* ignore */ }
+      set({ user: null, syncStatus: 'idle' })
     },
 
     async signOutAll() {
-      clearLocalSession()
+      await get().signOut()
     },
 
     // Reset demo profile / starter workouts
@@ -84,7 +174,7 @@ export const useStore = create((set, get) => {
       persist(Object.assign(clone(DEF), buildDemoState()))
     },
 
-    // Boot: instant local boot
+    // Boot: check session and load state
     async boot() {
       const S = loadState()
       registerCustom(S.customEx)
@@ -93,6 +183,22 @@ export const useStore = create((set, get) => {
         S.reminder = { ...S.reminder, tz }
         persist(S)
       }
+
+      // Check current auth session
+      try {
+        const res = await fetch('/api/auth/me')
+        if (res.ok) {
+          const data = await res.json()
+          if (data.user) {
+            set({ user: data.user })
+            // Background pull to get latest data from MongoDB
+            get().pullState().catch(() => {})
+          }
+        }
+      } catch (e) {
+        // Offline / local mode
+      }
+
       set({ S, ready: true })
     }
   }

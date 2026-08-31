@@ -19,6 +19,9 @@ import { parseImport, mergeImport } from './lib/import-csv.js'
 import { buildPlanBundle, parsePlan, mergePlan, printPlan } from './lib/plan-share.js'
 import { estimate1RM, best1RM, is1RMRecord, REP_CAP } from './lib/onerm.js'
 import { nextPrescription, applyPrescription, policyFor, defaultIncrement, POLICIES_FOR, POLICY_NAME, POLICY_DESC, MAX_BW_SETS } from './lib/progression.js'
+import AuthModal from './components/AuthModal.jsx'
+
+export const authSheet = () => ui().openSheet(close => <AuthModal close={close} />)
 
 const S = () => useStore.getState().S
 const update = (...a) => useStore.getState().update(...a)

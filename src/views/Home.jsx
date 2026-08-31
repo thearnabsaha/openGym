@@ -4,7 +4,7 @@ import { useStore } from '../store/useStore.js'
 import { effectiveRoutine, effectiveRoutineId, streakWeeks, lastBW, setsDoneActive } from '../lib/history.js'
 import { fmtNum, fmtDate, todayISO, isoOf, weekKey, DAYS } from '../lib/format.js'
 import { t, dateLocale } from '../lib/i18n.js'
-import { bwSheet, goalSheet, dayOverrideSheet, calendarSheet, startFlow, loadStarterPlan, bwDeltaColor } from '../sheets.jsx'
+import { bwSheet, goalSheet, dayOverrideSheet, calendarSheet, startFlow, loadStarterPlan, bwDeltaColor, authSheet } from '../sheets.jsx'
 import LineChart from '../components/LineChart.jsx'
 import Icon from '../components/Icon.jsx'
 import { Button } from '../components/ui.jsx'
@@ -24,19 +24,27 @@ export default function Home() {
   const prevBW = S.bodyweight.length > 1 ? S.bodyweight[S.bodyweight.length - 2] : null
   const delta = bw && prevBW ? bw.w - prevBW.w : null
 
-  const monday = new Date(today); monday.setDate(today.getDate() - ((today.getDay() + 6) % 7) + weekOffset * 7)
-  const doneDays = new Set(S.workouts.map(w => w.d))
-  const strip = []
+  const days = []
   for (let i = 0; i < 7; i++) {
-    const d = new Date(monday); d.setDate(monday.getDate() + i)
-    const iso = isoOf(d)
-    const eff = effectiveRoutineId(S, iso), ovr = S.dayPlan[iso] !== undefined, done = doneDays.has(iso)
-    const dot = done ? ' done' : ovr && eff ? ' ovr' : eff ? ' plan' : ''
-    strip.push(<div key={i} className={'wday' + (iso === todayISO() ? ' today' : '')} onClick={() => dayOverrideSheet(iso)}>
-      <div className="lbl">{t(DAYS[d.getDay()])}</div><div className="num">{d.getDate()}</div><div className={'dot' + dot} /></div>)
+    const d = new Date()
+    d.setDate(today.getDate() - ((today.getDay() + 6) % 7) + i + weekOffset * 7)
+    days.push(d)
   }
-  const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6)
-  const wkLabel = weekOffset === 0 ? t('This week') : `${monday.getDate()} ${monday.toLocaleDateString(dateLocale(), { month: 'short' })} – ${sunday.getDate()} ${sunday.toLocaleDateString(dateLocale(), { month: 'short' })}`
+  const wkLabel = days[0].toLocaleDateString(dateLocale(), { month: 'short', day: 'numeric' }) + ' – ' +
+    days[6].toLocaleDateString(dateLocale(), { month: 'short', day: 'numeric' })
+
+  const strip = days.map(d => {
+    const iso = isoOf(d)
+    const isToday = iso === todayISO()
+    const rId = effectiveRoutineId(S, iso)
+    const isDone = S.workouts.some(w => w.d === iso)
+    return <div key={iso} className={'d' + (isToday ? ' today' : '') + (isDone ? ' done' : '') + (rId ? ' planned' : '')}
+      onClick={() => dayOverrideSheet(iso)}>
+      <span className="lbl">{DAYS[(d.getDay() + 6) % 7]}</span>
+      <span className="n">{d.getDate()}</span>
+      <span className="dot">{isDone ? <Icon name="check" /> : rId ? <span className="pdot" /> : null}</span>
+    </div>
+  })
 
   const wThisWeek = S.workouts.filter(w => weekKey(w.d) === weekKey(todayISO())).length
   const plannedPerWeek = Object.keys(S.week).filter(k => S.week[k]).length
@@ -47,8 +55,18 @@ export default function Home() {
 
   return <div className="narrow">
     <div className="hdr">
-      <div><h1>openGym</h1><div className="sub">{today.toLocaleDateString(dateLocale(), { weekday: 'long', day: 'numeric', month: 'long' })}</div></div>
-      <button className="iconbtn" onClick={() => nav('/settings')} aria-label={t('Settings')}><Icon name="gear" /></button>
+      <div>
+        <h1>{user ? (user.displayName || user.username) : 'openGym'}</h1>
+        <div className="sub">{today.toLocaleDateString(dateLocale(), { weekday: 'long', day: 'numeric', month: 'long' })}</div>
+      </div>
+      <div className="row" style={{ gap: 6 }}>
+        {!user && (
+          <button className="iconbtn" onClick={authSheet} aria-label={t('Sign In')} style={{ color: 'var(--acc)' }}>
+            <Icon name="person" />
+          </button>
+        )}
+        <button className="iconbtn" onClick={() => nav('/settings')} aria-label={t('Settings')}><Icon name="gear" /></button>
+      </div>
     </div>
 
     <div className="card">
