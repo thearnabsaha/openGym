@@ -279,21 +279,27 @@ h4.sec{
 
 /* ----------------------------------------------------------- tab bar ----- */
 #tabbar{
-  position:fixed;left:0;right:0;bottom:0;z-index:90;
-  display:flex;justify-content:space-around;align-items:center;
+  position:fixed;left:0;right:0;bottom:0;z-index:100;
+  display:flex;justify-content:space-around;align-items:flex-start;
   box-sizing:border-box;
-  padding:2px 4px env(safe-area-inset-bottom, 0px);
-  background:color-mix(in srgb,var(--bg-el) 94%,transparent);
+  width:100%;
+  height:calc(54px + env(safe-area-inset-bottom, 0px));
+  padding-top:6px;
+  padding-left:4px;
+  padding-right:4px;
+  padding-bottom:env(safe-area-inset-bottom, 0px);
+  background:rgba(18,18,20,0.88);
   backdrop-filter:saturate(180%) blur(24px);-webkit-backdrop-filter:saturate(180%) blur(24px);
   border-top:var(--hair) solid var(--sep-op);
   transform:translate3d(0, 0, 0);-webkit-transform:translate3d(0, 0, 0);
   will-change:transform;
   backface-visibility:hidden;-webkit-backface-visibility:hidden;
 }
-:root[data-theme="light"] #tabbar{background:rgba(249,249,251,.96)}
+:root[data-theme="light"] #tabbar{background:rgba(249,249,251,.92)}
 #tabbar button{
-  flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
-  color:var(--label-3);font-size:10px;font-weight:500;letter-spacing:.005em;padding:4px 0;
+  flex:1;height:44px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+  color:var(--label-3);font-size:10px;font-weight:500;letter-spacing:.005em;padding:0;
+  border-radius:8px;
   transition:color var(--fast);
 }
 /* The inactive tint is semi-transparent, so wherever two strokes cross inside an
@@ -304,16 +310,16 @@ h4.sec{
 #tabbar button .icn{font-size:22px;--icon-stroke:1.65;color:var(--label)}
 #tabbar button.on{color:var(--acc)}
 #tabbar button.on .icn{--icon-stroke:2;color:inherit;opacity:1}
-#tabbar button.start{margin-top:-16px}
+#tabbar button.start{margin-top:-20px}
 #tabbar button.start .cir{
   width:48px;height:48px;border-radius:50%;background:var(--acc);color:var(--on-acc);
   display:flex;align-items:center;justify-content:center;position:relative;
-  box-shadow:0 4px 14px -3px color-mix(in srgb,var(--acc) 55%,transparent);
+  box-shadow:0 4px 16px -2px color-mix(in srgb,var(--acc) 50%,transparent);
   transition:transform var(--fast) var(--ease);
 }
 #tabbar button.start:active .cir{transform:scale(.93)}
 #tabbar button.start .cir .icn{font-size:24px;--icon-stroke:2;color:inherit;opacity:1}
-#tabbar button.start span{color:var(--acc);font-weight:600}
+#tabbar button.start span{color:var(--acc);font-weight:600;font-size:10px;margin-top:2px}
 /* `.cir` is itself a <span>, so the label rules above and below reach it too and
    outrank the `.cir` block — which is how the running state ended up painting an
    orange play glyph onto an orange disc. Both states restate their own colour.
