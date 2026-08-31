@@ -823,7 +823,7 @@ export function WorkoutRow({ w, onClick }) {
 
 /* ============================ workout lifecycle ============================ */
 export function startFlow(routineId) {
-  bwSheet({ required: true, onDone: bw => beginWorkout(routineId, bw) })
+  beginWorkout(routineId)
 }
 export function beginWorkout(routineId, bw) {
   const st = S()
@@ -858,25 +858,23 @@ function TopWeight({ entryIdx, close }) {
 
   const units = supersetUnits(A ? A.entries : [])
   const unit = entry ? unitOf(units, entryIdx) : []
-  const unitDone = !!entry && unit.every(i => A.entries[i].sets.every(s => s.done))
-  const unitIdx = units.findIndex(u => u === unit)
-  const isLastUnit = unitIdx === units.length - 1
-  if (!entry || !ex) return null
+  const unitDone = entry && unit.every(idx => A.entries[idx].sets.every(s => s.done))
+  const isLastUnit = entry && unit.includes(A.entries.length - 1)
+  const nextEntry = entry && A.entries[entryIdx + 1]
 
-  const commit = advance => {
-    const n = Math.round((v || 0) * 10) / 10
-    if (!isFinite(n) || n < 0) { toast(t('Enter a valid weight')); return }
+  const commit = andAdvance => {
+    const w = parseFloat(v) || 0
     update(s => {
-      s.active.entries[entryIdx].topW = n
-      const cur = s.exWeights[entry.id]
-      s.exWeights[entry.id] = { w: Math.max(n, cur ? cur.w : 0), d: todayISO() }
+      s.exWeights[entry.id] = { w, d: todayISO() }
+      if (s.active && s.active.entries[entryIdx]) s.active.entries[entryIdx].topW = w
     })
     close()
-    if (advance && unitDone) {
-      if (isLastUnit) workoutCompleteSheet()               // whole workout done → finish/continue prompt
-      else update(s => { s.active.cur = units[unitIdx + 1][0] })
-    } else toast(t('Tracked — next time starts at {0}', fmtNum(S().exWeights[entry.id].w) + ' ' + st.unit))
+    if (andAdvance && nextEntry) {
+      document.getElementById('ex-' + (entryIdx + 1))?.scrollIntoView({ behavior: 'smooth' })
+    }
   }
+
+  if (!entry || !ex) return null
   return <>
     <h3 className="capitalize row" style={{ gap: 8 }}><Icon name="checkCircle" style={{ color: 'var(--acc)' }} />{t('{0} done', ex.n)}</h3>
     <div className="muted small">{t('Confirm the weight you worked with — your highest becomes the default next time.')}{!unitDone && unit.length > 1 ? ' ' + t('Then finish the superset partner.') : ''}</div>
@@ -904,25 +902,59 @@ function WorkoutComplete({ close }) {
 }
 export const workoutCompleteSheet = () => ui().openSheet(close => <WorkoutComplete close={close} />, { kind: 'center' })
 
+function getOrdinal(n) {
+  const s = ['th', 'st', 'nd', 'rd']
+  const v = n % 100
+  return n + (s[(v - 20) % 10] || s[v] || s[0])
+}
+
 function FinishSummary({ w, prs, e1prs = [], close }) {
   const st = useStore(s => s.S)
-  return <div style={{ textAlign: 'center', padding: '8px 0' }}>
-    <div style={{ fontSize: 44, display: 'flex', justifyContent: 'center', color: 'var(--acc)' }}><Icon name="trophy" /></div>
-    <h3 style={{ margin: '8px 0' }}>{t('Workout complete!')}</h3>
-    <div className="tiles" style={{ textAlign: 'left' }}>
-      <div className="tile"><div className="l">{t('Duration')}</div><div className="v" style={{ fontSize: '1.1rem' }}>{fmtDur(w.end - w.start)}</div></div>
-      <div className="tile"><div className="l">{t('Volume')}</div><div className="v" style={{ fontSize: '1.1rem' }}>{fmtVol(w.vol, st.unit)}</div></div>
-      <div className="tile"><div className="l">{t('Sets')}</div><div className="v" style={{ fontSize: '1.1rem' }}>{setsDone(w)}</div></div>
-      <div className="tile"><div className="l">{t('PRs')}</div><div className="v" style={{ fontSize: 20 }}>{prs.length || '—'}</div></div>
+  const todaysWorkouts = st.workouts.filter(x => x.d === w.d)
+  const nthToday = todaysWorkouts.length
+  const nthTotal = st.workouts.length
+  const totalVolume = w.vol || 0
+
+  return <div style={{ textAlign: 'center', padding: '6px 0' }}>
+    <div style={{ fontSize: 46, display: 'flex', justifyContent: 'center', color: 'var(--acc)', marginBottom: 2 }}><Icon name="trophy" /></div>
+    <h2 style={{ margin: '4px 0 2px', fontSize: 23, fontWeight: 700, letterSpacing: '-.02em', color: 'var(--label)' }}>🎉 {t('Congratulations!')}</h2>
+    <div style={{ fontSize: 14, color: 'var(--label-2)', marginBottom: 12 }}>{t('Awesome work crushing today’s training!')}</div>
+
+    {/* Highlights Banner */}
+    <div style={{
+      background: 'color-mix(in srgb, var(--acc) 14%, var(--surface))',
+      border: '1px solid color-mix(in srgb, var(--acc) 32%, transparent)',
+      borderRadius: 'var(--r-card)',
+      padding: '12px 14px',
+      marginBottom: 14,
+      textAlign: 'center'
+    }}>
+      <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.04em', color: 'var(--acc)', marginBottom: 3 }}>
+        🔥 {getOrdinal(nthToday)} {t('Workout Today')} · #{nthTotal} {t('All-Time')}
+      </div>
+      <div style={{ fontSize: 28, fontWeight: 700, letterSpacing: '-.025em', color: 'var(--label)', lineHeight: 1.15 }}>
+        {fmtNum(totalVolume)} <span style={{ fontSize: 18, color: 'var(--acc)' }}>{st.unit}</span>
+      </div>
+      <div style={{ fontSize: 12, color: 'var(--label-2)', marginTop: 2 }}>{t('Total weight lifted this session')}</div>
     </div>
-    {(prs.length > 0 || e1prs.length > 0) && <div style={{ textAlign: 'left', marginBottom: 12 }}>
-      {prs.map(id => <div key={id} className="small accent capitalize row" style={{ gap: 5 }}><Icon name="trophy" style={{ fontSize: 13 }} />{t('New PR:')} {(EXIDX[id] || {}).n || id}</div>)}
-      {e1prs.map(p => <div key={p.id} className="small accent capitalize row" style={{ gap: 5 }}><Icon name="chartLine" style={{ fontSize: 13 }} />{t('Best estimated 1RM:')} {(EXIDX[p.id] || {}).n || p.id} · {fmtNum(p.est)} {st.unit}</div>)}
+
+    {/* Metrics Grid */}
+    <div className="tiles" style={{ textAlign: 'left', marginBottom: 12 }}>
+      <div className="tile"><div className="l">{t('Duration')}</div><div className="v" style={{ fontSize: '1.1rem' }}>{fmtDur(w.end - w.start)}</div></div>
+      <div className="tile"><div className="l">{t('Sets Done')}</div><div className="v" style={{ fontSize: '1.1rem' }}>{setsDone(w)}</div></div>
+      <div className="tile"><div className="l">{t('Exercises')}</div><div className="v" style={{ fontSize: '1.1rem' }}>{w.entries.length}</div></div>
+      <div className="tile"><div className="l">{t('PRs')}</div><div className="v" style={{ fontSize: '1.1rem', color: prs.length ? 'var(--yellow)' : 'inherit' }}>{prs.length || '0'}</div></div>
+    </div>
+
+    {(prs.length > 0 || e1prs.length > 0) && <div style={{ textAlign: 'left', marginBottom: 12, background: 'var(--surface-2)', padding: '10px 12px', borderRadius: 'var(--r)' }}>
+      {prs.map(id => <div key={id} className="small accent capitalize row" style={{ gap: 6, fontWeight: 600 }}><Icon name="trophy" style={{ fontSize: 13, color: 'var(--yellow)' }} />{t('New PR:')} {(EXIDX[id] || {}).n || id}</div>)}
+      {e1prs.map(p => <div key={p.id} className="small accent capitalize row" style={{ gap: 6, fontWeight: 600 }}><Icon name="chartLine" style={{ fontSize: 13 }} />{t('Best estimated 1RM:')} {(EXIDX[p.id] || {}).n || p.id} · {fmtNum(p.est)} {st.unit}</div>)}
     </div>}
-    <h4 className="sec" style={{ textAlign: 'left' }}>{t('What you just trained')}</h4>
+
+    <h4 className="sec" style={{ textAlign: 'left', margin: '14px 0 8px' }}>{t('What you just trained')}</h4>
     <BodyMap load={loadOfWorkouts([w])} body={st.body} />
-    <div style={{ height: 14 }} />
-    <Button variant="primary" onClick={() => { close(); nav('/home') }}>{t('Nice!')}</Button>
+    <div style={{ height: 16 }} />
+    <Button variant="primary" icon="check" onClick={() => { close(); nav('/home') }}>{t('Awesome, done!')}</Button>
   </div>
 }
 export function finishWorkout() {
