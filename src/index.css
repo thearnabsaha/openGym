@@ -280,26 +280,19 @@ h4.sec{
 /* ----------------------------------------------------------- tab bar ----- */
 #tabbar{
   position:fixed;left:0;right:0;bottom:0;z-index:100;
-  display:flex;justify-content:space-around;align-items:flex-start;
-  box-sizing:border-box;
-  width:100%;
-  height:calc(54px + env(safe-area-inset-bottom, 0px));
-  padding-top:6px;
-  padding-left:4px;
-  padding-right:4px;
-  padding-bottom:env(safe-area-inset-bottom, 0px);
-  background:rgba(18,18,20,0.88);
+  display:flex;justify-content:space-around;align-items:flex-end;
+  padding:6px 6px calc(6px + env(safe-area-inset-bottom, 0px));
+  background:color-mix(in srgb,var(--bg-el) 92%,transparent);
   backdrop-filter:saturate(180%) blur(24px);-webkit-backdrop-filter:saturate(180%) blur(24px);
   border-top:var(--hair) solid var(--sep-op);
   transform:translate3d(0, 0, 0);-webkit-transform:translate3d(0, 0, 0);
   will-change:transform;
   backface-visibility:hidden;-webkit-backface-visibility:hidden;
 }
-:root[data-theme="light"] #tabbar{background:rgba(249,249,251,.92)}
+:root[data-theme="light"] #tabbar{background:rgba(249,249,251,.94)}
 #tabbar button{
-  flex:1;height:44px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
-  color:var(--label-3);font-size:10px;font-weight:500;letter-spacing:.005em;padding:0;
-  border-radius:8px;
+  flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;
+  color:var(--label-3);font-size:10px;font-weight:500;letter-spacing:.005em;padding-top:3px;
   transition:color var(--fast);
 }
 /* The inactive tint is semi-transparent, so wherever two strokes cross inside an
@@ -307,19 +300,19 @@ h4.sec{
    the alpha doubled up and the icon read as a stack of loose layers. Carrying the
    fade on the <svg> instead of in the stroke colour flattens the icon first and
    fades it as one shape — and it does that for every icon, not just this one. */
-#tabbar button .icn{font-size:22px;--icon-stroke:1.65;color:var(--label)}
+#tabbar button .icn{font-size:25px;--icon-stroke:1.65;color:var(--label)}
 #tabbar button.on{color:var(--acc)}
 #tabbar button.on .icn{--icon-stroke:2;color:inherit;opacity:1}
-#tabbar button.start{margin-top:-20px}
+#tabbar button.start{margin-top:-24px}
 #tabbar button.start .cir{
-  width:48px;height:48px;border-radius:50%;background:var(--acc);color:var(--on-acc);
+  width:52px;height:52px;border-radius:50%;background:var(--acc);color:var(--on-acc);
   display:flex;align-items:center;justify-content:center;position:relative;
-  box-shadow:0 4px 16px -2px color-mix(in srgb,var(--acc) 50%,transparent);
+  box-shadow:0 6px 18px -4px color-mix(in srgb,var(--acc) 55%,transparent);
   transition:transform var(--fast) var(--ease);
 }
 #tabbar button.start:active .cir{transform:scale(.93)}
-#tabbar button.start .cir .icn{font-size:24px;--icon-stroke:2;color:inherit;opacity:1}
-#tabbar button.start span{color:var(--acc);font-weight:600;font-size:10px;margin-top:2px}
+#tabbar button.start .cir .icn{font-size:26px;--icon-stroke:2;color:inherit;opacity:1}
+#tabbar button.start span{color:var(--acc);font-weight:600}
 /* `.cir` is itself a <span>, so the label rules above and below reach it too and
    outrank the `.cir` block — which is how the running state ended up painting an
    orange play glyph onto an orange disc. Both states restate their own colour.
