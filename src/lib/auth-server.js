@@ -1,7 +1,14 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'opengym_default_secret_key_2026';
+export function getJwtSecret() {
+  return (
+    process.env.JWT_SECRET ||
+    process.env.JWT_SECRET_KEY ||
+    process.env.NEXTAUTH_SECRET ||
+    'opengym_default_secret_key_2026'
+  ).trim();
+}
 
 export async function hashPassword(password) {
   const salt = await bcrypt.genSalt(10);
@@ -14,12 +21,12 @@ export async function comparePassword(password, hash) {
 }
 
 export function signToken(payload) {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: '90d' });
+  return jwt.sign(payload, getJwtSecret(), { expiresIn: '90d' });
 }
 
 export function verifyToken(token) {
   try {
-    return jwt.verify(token, JWT_SECRET);
+    return jwt.verify(token, getJwtSecret());
   } catch (e) {
     return null;
   }
