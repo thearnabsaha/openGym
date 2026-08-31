@@ -1,0 +1,25 @@
+{
+  "name": "openGym - Self-Hosted Gym & Body Tracker",
+  "short_name": "openGym",
+  "description": "Plan your week, run guided workouts, track every set and body weight locally.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "icons": [
+    {
+      "src": "/icon-180.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
